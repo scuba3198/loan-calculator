@@ -14,29 +14,62 @@ let formatCurrency = (value: float): string => {
 let styleValue = (style: LoanMath.repaymentStyle): string =>
   LoanMath.repaymentStyleToString(style)
 
+let profileAt = (profiles: array<LoanPersistence.profile>, index: int): LoanPersistence.profile =>
+  switch Belt.Array.get(profiles, index) {
+  | Some(profile) => profile
+  | None => LoanPersistence.defaultProfile
+  }
+
+let profileOptionLabel = (profile: LoanPersistence.profile, index: int): string => {
+  let name = profile.name == "" ? "Untitled Loan" : profile.name
+  let purpose = profile.purpose == "" ? "" : " · " ++ profile.purpose
+  if name == "" && purpose == "" {
+    "Loan " ++ Belt.Int.toString(index + 1)
+  } else {
+    name ++ purpose
+  }
+}
+
+let profilePaidMonths = (profile: LoanPersistence.profile): array<int> => switch profile.style {
+| LoanMath.FlatRate => profile.flatPaidMonths
+| LoanMath.Emi => profile.emiPaidMonths
+| LoanMath.Bullet => profile.bulletPaidMonths
+}
+
+let profileWithPaidMonths = (
+  profile: LoanPersistence.profile,
+  paidMonths: array<int>,
+): LoanPersistence.profile => switch profile.style {
+| LoanMath.FlatRate => {...profile, flatPaidMonths: paidMonths}
+| LoanMath.Emi => {...profile, emiPaidMonths: paidMonths}
+| LoanMath.Bullet => {...profile, bulletPaidMonths: paidMonths}
+}
+
 @react.component
 let make = () => {
-  let (principalInput, setPrincipalInput) = React.useState(() => "300000")
-  let (annualRateInput, setAnnualRateInput) = React.useState(() => "7.25")
-  let (tenureMonthsInput, setTenureMonthsInput) = React.useState(() => "12")
-
-  let (style, setStyle) = React.useState(() => LoanMath.FlatRate)
+  let (profiles, setProfiles) = React.useState(() => [LoanPersistence.defaultProfile])
+  let (activeProfileIndex, setActiveProfileIndex) = React.useState(() => 0)
   let (theme, setTheme) = React.useState(() => Oled)
-
-  let (flatPaidMonths, setFlatPaidMonths) = React.useState(() => [])
-  let (emiPaidMonths, setEmiPaidMonths) = React.useState(() => [])
-  let (bulletPaidMonths, setBulletPaidMonths) = React.useState(() => [])
   let (feedback, setFeedback) = React.useState(() => None)
+
+  let activeProfile = profileAt(profiles, activeProfileIndex)
+
+  let updateActiveProfile = (update: LoanPersistence.profile => LoanPersistence.profile) =>
+    setProfiles(prev =>
+      prev->Belt.Array.mapWithIndex((index, profile) =>
+        index == activeProfileIndex ? update(profile) : profile
+      )
+    )
 
   let fileInputRef = React.useRef(Nullable.null)
 
   let parsedInput = LoanMath.parseLoanInput(
-    ~principalInput,
-    ~annualRateInput,
-    ~tenureMonthsInput,
+    ~principalInput=activeProfile.principalInput,
+    ~annualRateInput=activeProfile.annualRateInput,
+    ~tenureMonthsInput=activeProfile.tenureMonthsInput,
   )
   let calculationResult = switch parsedInput {
-  | Ok(input) => LoanMath.calculate(~input, ~style)
+  | Ok(input) => LoanMath.calculate(~input, ~style=activeProfile.style)
   | Error(error) => Error(error)
   }
   let currentInput = switch parsedInput {
@@ -44,59 +77,75 @@ let make = () => {
   | Error(_) => LoanMath.defaultInput
   }
 
-  let activePaidMonths = switch style {
-  | LoanMath.FlatRate => flatPaidMonths
-  | LoanMath.Emi => emiPaidMonths
-  | LoanMath.Bullet => bulletPaidMonths
-  }
+  let activePaidMonths = profilePaidMonths(activeProfile)
   let normalizedActivePaidMonths = LoanMath.normalizePaidMonths(
     ~months=currentInput.tenureMonths,
     ~paidMonths=activePaidMonths,
   )
 
-  let setActivePaidMonths = (update: array<int> => array<int>) => {
-    let normalizedUpdate = prev =>
-      LoanMath.normalizePaidMonths(
+  let setActivePaidMonths = (update: array<int> => array<int>) =>
+    updateActiveProfile(profile => {
+      let normalizedUpdate = LoanMath.normalizePaidMonths(
         ~months=currentInput.tenureMonths,
-        ~paidMonths=update(prev),
+        ~paidMonths=update(profilePaidMonths(profile)),
       )
-    switch style {
-    | LoanMath.FlatRate => setFlatPaidMonths(normalizedUpdate)
-    | LoanMath.Emi => setEmiPaidMonths(normalizedUpdate)
-    | LoanMath.Bullet => setBulletPaidMonths(normalizedUpdate)
-    }
-  }
+      profileWithPaidMonths(profile, normalizedUpdate)
+    })
 
   let clearFeedback = () => setFeedback(_ => None)
 
   let togglePaidMonth = (month: int) => {
-    setActivePaidMonths(prev => {
-      let normalized = LoanMath.normalizePaidMonths(
-        ~months=currentInput.tenureMonths,
-        ~paidMonths=prev,
-      )
-      if Belt.Array.some(normalized, existing => existing == month) {
-        Belt.Array.keep(normalized, existing => existing != month)
+    setActivePaidMonths(paidMonths => {
+      if Belt.Array.some(paidMonths, existing => existing == month) {
+        Belt.Array.keep(paidMonths, existing => existing != month)
       } else {
-        Belt.Array.concat(normalized, [month])
+        Belt.Array.concat(paidMonths, [month])
       }
     })
   }
 
-  let handleExport = () => switch calculationResult {
-  | Ok(_) =>
-    let json = LoanPersistence.encode(
-      ~principal=currentInput.principal,
-      ~annualRate=currentInput.annualRate,
-      ~tenureMonths=currentInput.tenureMonths,
-      ~style,
-      ~flatPaidMonths,
-      ~emiPaidMonths,
-      ~bulletPaidMonths,
+  let handleAddProfile = () => {
+    let nextIndex = Belt.Array.length(profiles)
+    let nextProfile = LoanPersistence.createProfile(
+      ~name="New Loan " ++ Belt.Int.toString(nextIndex + 1),
+      ~purpose="",
     )
-    LoanPersistence.download(json)
-    setFeedback(_ => Some("Loan data exported."))
-  | Error(_) => ()
+    setProfiles(prev => Belt.Array.concat(prev, [nextProfile]))
+    setActiveProfileIndex(_ => nextIndex)
+    setFeedback(_ => Some("New loan profile created."))
+  }
+
+  let handleDeleteProfile = () => {
+    let profileCount = Belt.Array.length(profiles)
+    if profileCount > 1 {
+      let nextProfiles = Belt.Array.keepWithIndex(
+        profiles,
+        (_, index) => index != activeProfileIndex,
+      )
+      let nextActiveIndex = activeProfileIndex >= profileCount - 1
+        ? profileCount - 2
+        : activeProfileIndex
+      setProfiles(_ => nextProfiles)
+      setActiveProfileIndex(_ => nextActiveIndex)
+      setFeedback(_ => Some("Loan profile deleted."))
+    }
+  }
+
+  let allProfilesValid = Belt.Array.every(profiles, profile => switch LoanMath.parseLoanInput(
+    ~principalInput=profile.principalInput,
+    ~annualRateInput=profile.annualRateInput,
+    ~tenureMonthsInput=profile.tenureMonthsInput,
+  ) {
+  | Ok(_) => true
+  | Error(_) => false
+  })
+
+  let handleExport = () => switch calculationResult {
+  | Ok(_) if allProfilesValid =>
+    let json = LoanPersistence.encodeProfiles(~profiles, ~activeProfileIndex)
+    LoanPersistence.downloadProfiles(json)
+    setFeedback(_ => Some("Loan profiles exported."))
+  | _ => setFeedback(_ => Some("Fix invalid loan values before exporting."))
   }
 
   let handleFileChange = (event: ReactEvent.Form.t) => {
@@ -107,16 +156,11 @@ let make = () => {
       LoanPersistence.clearFileInput(target)
       LoanPersistence.readFileAsText(
         file,
-        content => switch LoanPersistence.decode(content) {
+        content => switch LoanPersistence.decodeProfiles(content) {
         | Ok(saved) => {
-            setPrincipalInput(_ => Belt.Float.toString(saved.principal))
-            setAnnualRateInput(_ => Belt.Float.toString(saved.annualRate))
-            setTenureMonthsInput(_ => Belt.Int.toString(saved.tenureMonths))
-            setStyle(_ => saved.style)
-            setFlatPaidMonths(_ => saved.flatPaidMonths)
-            setEmiPaidMonths(_ => saved.emiPaidMonths)
-            setBulletPaidMonths(_ => saved.bulletPaidMonths)
-            setFeedback(_ => Some("Loan data imported."))
+            setProfiles(_ => saved.profiles)
+            setActiveProfileIndex(_ => saved.activeProfileIndex)
+            setFeedback(_ => Some("Loan profiles imported."))
           }
         | Error(error) => setFeedback(_ => Some(LoanPersistence.importErrorMessage(error)))
         },
@@ -250,11 +294,8 @@ let make = () => {
       <header className="calc-header">
         <h1 className="calc-title"> {React.string("Loan Calculator")} </h1>
         <div className="header-actions">
-          <button type_="button" className="btn-action" onClick={_ => handleExport()} disabled={switch calculationResult {
-          | Ok(_) => false
-          | Error(_) => true
-          }}>
-            {React.string("Export JSON")}
+          <button type_="button" className="btn-action" onClick={_ => handleExport()} disabled={!allProfilesValid}>
+            {React.string("Export Profiles")}
           </button>
           <button
             type_="button"
@@ -288,6 +329,82 @@ let make = () => {
         }}
       </div>
 
+      <section className="profiles-panel">
+        <div className="profiles-header">
+          <div>
+            <p className="eyebrow"> {React.string("Loan profiles")} </p>
+            <h2 className="profile-title"> {React.string("Choose what you are tracking")} </h2>
+          </div>
+          <div className="profile-actions">
+            <label className="profile-picker">
+              <span className="visually-hidden"> {React.string("Active loan profile")} </span>
+              <select
+                id="profile-select"
+                className="input-control"
+                value={Belt.Int.toString(activeProfileIndex)}
+                onChange={event => {
+                  switch Belt.Int.fromString(ReactEvent.Form.target(event)["value"]) {
+                  | Some(index) => {
+                    setActiveProfileIndex(_ => index)
+                    clearFeedback()
+                  }
+                  | None => ()
+                  }
+                }}>
+                {profiles
+                ->Belt.Array.mapWithIndex((index, profile) =>
+                  <option key={Belt.Int.toString(index)} value={Belt.Int.toString(index)}>
+                    {React.string(profileOptionLabel(profile, index))}
+                  </option>
+                )
+                ->React.array}
+              </select>
+            </label>
+            <button type_="button" className="btn-action" onClick={_ => handleAddProfile()}>
+              {React.string("New Profile")}
+            </button>
+            <button
+              type_="button"
+              className="btn-action"
+              disabled={Belt.Array.length(profiles) <= 1}
+              onClick={_ => handleDeleteProfile()}>
+              {React.string("Delete")}
+            </button>
+          </div>
+        </div>
+        <div className="profile-fields">
+          <label className="input-field">
+            <span className="field-label"> {React.string("Profile Name")} </span>
+            <input
+              id="profile-name-input"
+              className="input-control"
+              type_="text"
+              value={activeProfile.name}
+              onChange={event => {
+                let value = ReactEvent.Form.target(event)["value"]
+                updateActiveProfile(profile => {...profile, name: value})
+                clearFeedback()
+              }}
+            />
+          </label>
+          <label className="input-field">
+            <span className="field-label"> {React.string("Purpose (Optional)")} </span>
+            <input
+              id="profile-purpose-input"
+              className="input-control"
+              type_="text"
+              placeholder="e.g. Laptop purchase or friend loan"
+              value={activeProfile.purpose}
+              onChange={event => {
+                let value = ReactEvent.Form.target(event)["value"]
+                updateActiveProfile(profile => {...profile, purpose: value})
+                clearFeedback()
+              }}
+            />
+          </label>
+        </div>
+      </section>
+
       <div className="inputs-grid">
         <label className="input-field">
           <span className="field-label"> {React.string("Principal (₹)")} </span>
@@ -298,9 +415,10 @@ let make = () => {
             min="0.01"
             step=0.01
             inputMode="decimal"
-            value=principalInput
+            value=activeProfile.principalInput
             onChange={event => {
-              setPrincipalInput(_ => ReactEvent.Form.target(event)["value"])
+              let value = ReactEvent.Form.target(event)["value"]
+              updateActiveProfile(profile => {...profile, principalInput: value})
               clearFeedback()
             }}
           />
@@ -315,9 +433,10 @@ let make = () => {
             min="0"
             step=0.05
             inputMode="decimal"
-            value=annualRateInput
+            value=activeProfile.annualRateInput
             onChange={event => {
-              setAnnualRateInput(_ => ReactEvent.Form.target(event)["value"])
+              let value = ReactEvent.Form.target(event)["value"]
+              updateActiveProfile(profile => {...profile, annualRateInput: value})
               clearFeedback()
             }}
           />
@@ -333,9 +452,10 @@ let make = () => {
             max={Belt.Int.toString(LoanMath.maxTenureMonths)}
             step=1.0
             inputMode="numeric"
-            value=tenureMonthsInput
+            value=activeProfile.tenureMonthsInput
             onChange={event => {
-              setTenureMonthsInput(_ => ReactEvent.Form.target(event)["value"])
+              let value = ReactEvent.Form.target(event)["value"]
+              updateActiveProfile(profile => {...profile, tenureMonthsInput: value})
               clearFeedback()
             }}
           />
@@ -372,13 +492,14 @@ let make = () => {
           <select
             id="repayment-style-input"
             className="input-control"
-            value={styleValue(style)}
+            value={styleValue(activeProfile.style)}
             onChange={event => {
               let value = ReactEvent.Form.target(event)["value"]
-              setStyle(_ => switch LoanMath.repaymentStyleFromString(value) {
+              let nextStyle = switch LoanMath.repaymentStyleFromString(value) {
               | Some(nextStyle) => nextStyle
               | None => LoanMath.FlatRate
-              })
+              }
+              updateActiveProfile(profile => {...profile, style: nextStyle})
               clearFeedback()
             }}>
             <option value="flat"> {React.string("Flat Rate (Simple Interest)")} </option>

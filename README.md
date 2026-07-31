@@ -20,7 +20,8 @@ A modern, fast, and minimalist loan EMI & interest calculator web application bu
 - **OLED Black / White Minimalist Aesthetic**: High-contrast OLED dark mode (`#000000`) and crisp light mode toggle with thin hairline dividers.
 - **Payment Done Tracking**: Mark individual months as paid with visual status badges, strike-through styling, and a live progress tracking bar.
 - **Per-Style Payment Scoping**: Payment completion history is independently tracked for each repayment style.
-- **JSON Import & Export**: Export your loan setup and payment progress to `.json` files and import saved files anytime.
+- **Named Loan Profiles**: Track separate loans such as a purchase EMI, a business loan from a friend, or a bullet loan, each with its own purpose, repayment style, and payment history.
+- **JSON Import & Export**: Export all loan profiles and payment progress to `.json` files. Older single-loan exports can still be imported.
 - **Indian Locale Formatting (`en-IN`)**: All monetary figures are formatted with standard Indian comma grouping (e.g., `₹3,00,000`).
 - **Fully Mobile Responsive**: Touch-friendly controls, fluid responsive grid, and horizontal scrollable amortization schedule table.
 

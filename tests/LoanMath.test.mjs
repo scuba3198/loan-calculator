@@ -109,3 +109,46 @@ test("JSON persistence supports legacy histories and rejects invalid files", () 
     "InvalidFormat",
   );
 });
+
+test("profile persistence round-trips multiple named loans", () => {
+  const purchase = {
+    ...LoanPersistence.createProfile("Laptop Purchase", "Personal purchase"),
+    principalInput: "90000",
+    annualRateInput: "12",
+    tenureMonthsInput: "12",
+    style: "Emi",
+    emiPaidMonths: [1, 2],
+  };
+  const friendLoan = {
+    ...LoanPersistence.createProfile("Friend Loan", "Business working capital"),
+    principalInput: "250000",
+    annualRateInput: "8",
+    tenureMonthsInput: "18",
+    style: "FlatRate",
+    flatPaidMonths: [1],
+  };
+
+  const json = LoanPersistence.encodeProfiles([purchase, friendLoan], 1);
+  const saved = unwrapOk(LoanPersistence.decodeProfiles(json));
+
+  assert.equal(saved.activeProfileIndex, 1);
+  assert.equal(saved.profiles.length, 2);
+  assert.equal(saved.profiles[0].name, "Laptop Purchase");
+  assert.equal(saved.profiles[0].purpose, "Personal purchase");
+  assert.equal(saved.profiles[0].style, "Emi");
+  assert.deepEqual(saved.profiles[0].emiPaidMonths, [1, 2]);
+  assert.equal(saved.profiles[1].name, "Friend Loan");
+  assert.equal(saved.profiles[1].style, "FlatRate");
+  assert.deepEqual(saved.profiles[1].flatPaidMonths, [1]);
+});
+
+test("profile persistence wraps the legacy single-loan format", () => {
+  const saved = unwrapOk(LoanPersistence.decodeProfiles(
+    '{"principal":1000,"annualRate":0,"tenureMonths":3,"style":"bullet","paidMonths":[1,3]}',
+  ));
+
+  assert.equal(saved.profiles.length, 1);
+  assert.equal(saved.profiles[0].name, "Imported Loan");
+  assert.equal(saved.profiles[0].style, "Bullet");
+  assert.deepEqual(saved.profiles[0].bulletPaidMonths, [1, 3]);
+});
