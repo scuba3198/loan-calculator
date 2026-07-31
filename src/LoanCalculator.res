@@ -353,18 +353,22 @@ let make = () => {
                 {React.string("i")}
               </button>
               <span id="repayment-style-help" className="tooltip-card" role="tooltip">
-                <span className="tooltip-title"> {React.string("Repayment Style Guide")} </span>
+                <span className="tooltip-title"> {React.string("Which repayment style should I use?")} </span>
                 <span className="tooltip-item">
-                  <strong> {React.string("Flat Rate (Simple Interest): ")} </strong>
-                  {React.string("Equal monthly installments combining principal and flat simple interest. Best for personal or vehicle financing.")}
+                  <strong> {React.string("Flat Rate — simple personal loans: ")} </strong>
+                  {React.string("Use this when a partner, friend, or family member agrees to fixed interest on the original loan amount. Principal and interest are split into equal monthly payments. Interest does not reduce as the balance falls, so this usually costs more than EMI at the same rate and term.")}
                 </span>
                 <span className="tooltip-item">
-                  <strong> {React.string("EMI (Reducing Balance): ")} </strong>
-                  {React.string("Equal monthly installments where interest decreases over time as principal amortizes. Standard for mortgages & bank loans.")}
+                  <strong> {React.string("EMI — bank-style loans: ")} </strong>
+                  {React.string("Use this for a mortgage, vehicle loan, or personal loan when interest should be recalculated each month on the unpaid balance. The total payment is usually the same, but the interest part falls as principal is repaid. This usually costs less than Flat Rate at the same rate and term.")}
                 </span>
                 <span className="tooltip-item">
-                  <strong> {React.string("Bullet / Lump Sum: ")} </strong>
-                  {React.string("Pay interest monthly during tenure, then repay the full principal lump sum at final maturity. Best for bridge/peer loans.")}
+                  <strong> {React.string("Bullet — one big payment at the end: ")} </strong>
+                  {React.string("Use this only when the borrower will return the full original principal on a known date. Pay interest each month, then repay the entire loan amount at the end. This fits short-term bridge loans or a loan backed by an expected lump sum.")}
+                </span>
+                <span className="tooltip-item">
+                  <strong> {React.string("For a ₹3,00,000 loan to a partner: ")} </strong>
+                  {React.string("Choose Flat Rate if you both want equal monthly payments with fixed interest. Choose EMI if interest should shrink as the principal is paid down. Choose Bullet only if the full ₹3,00,000 will be repaid in one final payment.")}
                 </span>
               </span>
             </span>
