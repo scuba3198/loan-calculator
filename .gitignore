@@ -1,0 +1,13 @@
+# dependencies
+node_modules/
+
+# build outputs
+dist/
+lib/bs/
+lib/ocaml/
+src/*.bs.js
+
+# environment & logs
+.env
+*.log
+.DS_Store

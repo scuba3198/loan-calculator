@@ -1,0 +1,8 @@
+{
+  "name": "loan-calculator",
+  "sources": [{ "dir": "src", "subdirs": true }],
+  "package-specs": [{ "module": "esmodule", "in-source": true }],
+  "suffix": ".bs.js",
+  "dependencies": ["@rescript/react"],
+  "jsx": { "version": 4 }
+}
