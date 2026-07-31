@@ -268,10 +268,24 @@ label.input-field {
     justify-content: flex-start;
   }
 
+  .field-label {
+    position: relative;
+  }
+
+  .tooltip-wrapper {
+    position: static;
+  }
+
   .tooltip-card {
-    width: calc(100vw - 2.5rem);
+    width: 100%;
     max-width: 320px;
-    left: -10px;
+    left: 0;
+    transform: translateY(4px);
+  }
+
+  .tooltip-wrapper:hover .tooltip-card,
+  .tooltip-wrapper:focus-within .tooltip-card {
+    transform: translateY(0);
   }
 
   .stat-value {
