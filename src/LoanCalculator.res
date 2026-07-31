@@ -366,10 +366,6 @@ let make = () => {
                   <strong> {React.string("Bullet — one big payment at the end: ")} </strong>
                   {React.string("Use this only when the borrower will return the full original principal on a known date. Pay interest each month, then repay the entire loan amount at the end. This fits short-term bridge loans or a loan backed by an expected lump sum.")}
                 </span>
-                <span className="tooltip-item">
-                  <strong> {React.string("For a ₹3,00,000 loan to a partner: ")} </strong>
-                  {React.string("Choose Flat Rate if you both want equal monthly payments with fixed interest. Choose EMI if interest should shrink as the principal is paid down. Choose Bullet only if the full ₹3,00,000 will be repaid in one final payment.")}
-                </span>
               </span>
             </span>
           </span>
