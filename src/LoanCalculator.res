@@ -7,7 +7,7 @@ type themeMode =
 @send external toLocaleString: (float, string) => string = "toLocaleString"
 
 let formatCurrency = (value: float): string => {
-  let rounded = Math.round(value)
+  let rounded = Math.round(value *. 100.0) /. 100.0
   "₹" ++ toLocaleString(rounded, "en-IN")
 }
 

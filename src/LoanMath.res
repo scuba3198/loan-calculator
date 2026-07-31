@@ -77,15 +77,40 @@ let validateLoanInput = (input: loanInput): result<loanInput, validationError> =
   }
 }
 
+let decimalInputPattern = RegExp.fromString(
+  "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$",
+)
+
+let parseStrictFloat = (value: string): option<float> => {
+  let trimmed = String.trim(value)
+  if trimmed == "" || !RegExp.test(decimalInputPattern, trimmed) {
+    None
+  } else {
+    Belt.Float.fromString(trimmed)
+  }
+}
+
+let parseStrictInt = (value: string): option<int> => switch parseStrictFloat(value) {
+| Some(number) if Float.isFinite(number) && number >= -2147483648.0 && number <= 2147483647.0 => {
+    let integer = Belt.Float.toInt(number)
+    if Belt.Int.toFloat(integer) == number {
+      Some(integer)
+    } else {
+      None
+    }
+  }
+| _ => None
+}
+
 let parseLoanInput = (
   ~principalInput: string,
   ~annualRateInput: string,
   ~tenureMonthsInput: string,
 ): result<loanInput, validationError> => {
   switch (
-    Belt.Float.fromString(principalInput),
-    Belt.Float.fromString(annualRateInput),
-    Belt.Int.fromString(tenureMonthsInput),
+    parseStrictFloat(principalInput),
+    parseStrictFloat(annualRateInput),
+    parseStrictInt(tenureMonthsInput),
   ) {
   | (Some(principal), Some(annualRate), Some(tenureMonths)) =>
     validateLoanInput({principal, annualRate, tenureMonths})
@@ -102,23 +127,51 @@ let calcEmi = (~principal: float, ~monthlyRate: float, ~months: int): float => {
     principal /. Belt.Int.toFloat(months)
   } else {
     let n = Belt.Int.toFloat(months)
-    let factor = Math.pow(1.0 +. monthlyRate, ~exp=n)
-    principal *. monthlyRate *. factor /. (factor -. 1.0)
+    let growthLog = Math.log1p(monthlyRate)
+    let oneMinusDiscount = 0.0 -. Math.expm1(0.0 -. growthLog *. n)
+    principal *. monthlyRate /. oneMinusDiscount
   }
 }
 
 let buildEmiSchedule = (~principal: float, ~monthlyRate: float, ~months: int, ~emi: float): array<scheduleRow> => {
   if months <= 0 {
     []
-  } else {
+  } else if monthlyRate == 0.0 {
     let balance = ref(principal)
     Belt.Array.makeBy(months, i => {
       let isLastMonth = i == months - 1
-      let interestPart = balance.contents *. monthlyRate
-      let principalPart = isLastMonth ? balance.contents : emi -. interestPart
-      let actualPayment = isLastMonth ? principalPart +. interestPart : emi
+      let principalPart = isLastMonth ? balance.contents : emi
+      let actualPayment = isLastMonth ? principalPart : emi
       let nextBalance = isLastMonth ? 0.0 : Math.max(balance.contents -. principalPart, 0.0)
       balance := nextBalance
+      {
+        month: i + 1,
+        payment: actualPayment,
+        interest: 0.0,
+        principal: principalPart,
+        balance: nextBalance,
+      }
+    })
+  } else {
+    let growthLog = Math.log1p(monthlyRate)
+    Belt.Array.makeBy(months, i => {
+      let isLastMonth = i == months - 1
+      let remainingMonths = months - i
+      let remaining = Belt.Int.toFloat(remainingMonths)
+      let oneMinusDiscount = 0.0 -. Math.expm1(0.0 -. growthLog *. remaining)
+      let balance = emi *. oneMinusDiscount /. monthlyRate
+      let interestPart = balance *. monthlyRate
+      let discountFactor = Math.exp(0.0 -. growthLog *. remaining)
+      let principalPart = isLastMonth ? balance : emi *. discountFactor
+      let actualPayment = isLastMonth ? principalPart +. interestPart : emi
+      let nextRemaining = remainingMonths - 1
+      let nextBalance = if isLastMonth {
+        0.0
+      } else {
+        let next = Belt.Int.toFloat(nextRemaining)
+        let nextOneMinusDiscount = 0.0 -. Math.expm1(0.0 -. growthLog *. next)
+        emi *. nextOneMinusDiscount /. monthlyRate
+      }
       {
         month: i + 1,
         payment: actualPayment,

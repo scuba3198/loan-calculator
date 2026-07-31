@@ -60,6 +60,50 @@ test("input validation rejects malformed and unsafe values", () => {
   assert.equal(unwrapError(LoanMath.parseLoanInput("Infinity", "7.25", "12")), "InvalidPrincipal");
 });
 
+test("input parsing rejects trailing characters and fractional tenures", () => {
+  assert.equal(
+    unwrapError(LoanMath.parseLoanInput("300000oops", "7.25", "12")),
+    "InvalidPrincipal",
+  );
+  assert.equal(
+    unwrapError(LoanMath.parseLoanInput("300000", "7.25%", "12")),
+    "InvalidAnnualRate",
+  );
+  assert.equal(
+    unwrapError(LoanMath.parseLoanInput("300000", "7.25", "12.5")),
+    "InvalidTenure",
+  );
+  assert.equal(
+    unwrapOk(LoanMath.parseLoanInput("300000", "7.25", "12.0")).tenureMonths,
+    12,
+  );
+});
+
+test("profile import rejects malformed numeric strings", () => {
+  const malformed = JSON.stringify({
+    profiles: [{
+      name: "Malformed",
+      purpose: "",
+      principal: "1000oops",
+      annualRate: "7.25%",
+      tenureMonths: "12months",
+      style: "emi",
+    }],
+  });
+
+  assert.equal(unwrapError(LoanPersistence.decodeProfiles(malformed)), "InvalidLoan");
+});
+
+test("EMI schedule remains consistent for high-rate long-term loans", () => {
+  const result = calculate("emi", parseValid(100000, 36, 1200));
+  const scheduleTotal = result.schedule.reduce((sum, row) => sum + row.payment, 0);
+
+  assert.ok(Math.abs(scheduleTotal - result.totalRepaid) < 0.01);
+  assert.ok(result.schedule[0].principal > 0);
+  assert.ok(result.schedule.at(-1).payment < result.monthlyPayment * 1.01);
+  assert.equal(result.schedule.at(-1).balance, 0);
+});
+
 test("paid months are bounded and deduplicated", () => {
   assert.deepEqual(
     LoanMath.normalizePaidMonths(12, [1, 1, 0, 13, -2, 3]),
