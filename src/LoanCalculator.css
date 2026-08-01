@@ -371,6 +371,135 @@ label.input-field {
   gap: 1rem;
 }
 
+/* Staged Funding Workspace */
+.disbursements-panel {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.disbursements-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.section-description {
+  margin: 0.45rem 0 0;
+  color: var(--muted-color);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  max-width: 38rem;
+}
+
+.funding-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background-color: var(--border-color);
+  border: 1px solid var(--border-color);
+  margin-bottom: 1.25rem;
+}
+
+.funding-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background-color: var(--input-bg);
+  padding: 0.8rem 0.9rem;
+}
+
+.funding-stat span {
+  color: var(--muted-color);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.funding-stat strong {
+  color: var(--text-color);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.funding-stat-highlight {
+  box-shadow: inset 2px 0 0 var(--paid-badge-text);
+}
+
+.funding-stat-highlight strong {
+  color: var(--paid-badge-text);
+}
+
+.funding-summary-error {
+  grid-column: 1 / -1;
+  background-color: var(--input-bg);
+  color: var(--muted-color);
+  font-size: 0.8rem;
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+}
+
+.disbursements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.disbursement-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.disbursement-number {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  color: var(--muted-color);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.15rem;
+}
+
+.disbursement-remove {
+  margin-bottom: 0.15rem;
+}
+
+@media (max-width: 600px) {
+  .disbursements-header {
+    flex-direction: column;
+  }
+
+  .funding-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .disbursement-row {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .disbursement-row .input-field:last-of-type,
+  .disbursement-remove {
+    grid-column: 2;
+  }
+
+  .disbursement-remove {
+    justify-self: start;
+  }
+}
+
 .validation-panel {
   padding: 1rem;
   border: 1px solid var(--paid-badge-text);

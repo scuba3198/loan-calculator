@@ -20,6 +20,7 @@ A modern, fast, and minimalist loan EMI & interest calculator web application bu
 - **OLED Black / White Minimalist Aesthetic**: High-contrast OLED dark mode (`#000000`) and crisp light mode toggle with thin hairline dividers.
 - **Payment Done Tracking**: Mark individual months as paid with visual status badges, strike-through styling, and a live progress tracking bar.
 - **Per-Style Payment Scoping**: Payment completion history is independently tracked for each repayment style.
+- **Staged Disbursements**: Separate the planned loan commitment from the amounts actually handed over, record each tranche's loan month, and calculate interest only from when that tranche is funded.
 - **Named Loan Profiles**: Track separate loans such as a purchase EMI, a business loan from a friend, or a bullet loan, each with its own purpose, repayment style, and payment history.
 - **JSON Import & Export**: Export all loan profiles and payment progress to `.json` files. Older single-loan exports can still be imported.
 - **Indian Locale Formatting (`en-IN`)**: All monetary figures are formatted with standard Indian comma grouping (e.g., `₹3,00,000`).
@@ -73,7 +74,7 @@ A modern, fast, and minimalist loan EMI & interest calculator web application bu
 
 ### Input limits
 
-The calculator accepts positive principals, non-negative annual rates, and tenures from 1 to 1,200 whole-number months. Invalid input is rejected instead of being silently converted to zero. Imported payment histories are validated and normalized before use.
+The calculator accepts positive planned loan amounts, non-negative annual rates, and tenures from 1 to 1,200 whole-number months. Each disbursement must be positive, fall within the loan tenure, and remain within the planned commitment. Invalid input is rejected instead of being silently converted to zero. Imported payment histories and disbursement rows are validated before use.
 
 ---
 

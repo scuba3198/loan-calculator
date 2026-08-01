@@ -8,6 +8,11 @@ type savedState = {
   bulletPaidMonths: array<int>,
 }
 
+type disbursementInput = {
+  amountInput: string,
+  monthInput: string,
+}
+
 type profile = {
   name: string,
   purpose: string,
@@ -18,6 +23,7 @@ type profile = {
   flatPaidMonths: array<int>,
   emiPaidMonths: array<int>,
   bulletPaidMonths: array<int>,
+  disbursements: array<disbursementInput>,
 }
 
 type savedProfiles = {
@@ -43,15 +49,19 @@ external clearFileInput: 'a => unit = "clearFileInput"
 external clickFileInput: 'a => unit = "clickFileInput"
 
 let createProfile = (~name: string, ~purpose: string): profile => {
-  name,
-  purpose,
-  principalInput: Belt.Float.toString(LoanMath.defaultInput.principal),
-  annualRateInput: Belt.Float.toString(LoanMath.defaultInput.annualRate),
-  tenureMonthsInput: Belt.Int.toString(LoanMath.defaultInput.tenureMonths),
-  style: LoanMath.FlatRate,
-  flatPaidMonths: [],
-  emiPaidMonths: [],
-  bulletPaidMonths: [],
+  let defaultPrincipal = Belt.Float.toString(LoanMath.defaultInput.principal)
+  {
+    name,
+    purpose,
+    principalInput: defaultPrincipal,
+    annualRateInput: Belt.Float.toString(LoanMath.defaultInput.annualRate),
+    tenureMonthsInput: Belt.Int.toString(LoanMath.defaultInput.tenureMonths),
+    style: LoanMath.FlatRate,
+    flatPaidMonths: [],
+    emiPaidMonths: [],
+    bulletPaidMonths: [],
+    disbursements: [{amountInput: defaultPrincipal, monthInput: "1"}],
+  }
 }
 
 let defaultProfile = createProfile(~name="My Loan", ~purpose="")
@@ -115,6 +125,29 @@ let decodeInputString = (object: dict<JSON.t>, key: string): option<string> =>
       }
     }
   }
+
+let decodeDisbursementArray = (value: JSON.t): option<array<disbursementInput>> =>
+  switch JSON.Decode.array(value) {
+  | None => None
+  | Some(values) => values->Belt.Array.reduce(Some([]), (decoded, value) => switch decoded {
+    | None => None
+    | Some(disbursements) => switch JSON.Decode.object(value) {
+      | None => None
+      | Some(object) => switch (decodeInputString(object, "amount"), decodeInputString(object, "month")) {
+        | (Some(amountInput), Some(monthInput)) => Some(Belt.Array.concat(disbursements, [{amountInput, monthInput}]))
+        | _ => None
+        }
+      }
+    })
+  }
+
+let decodeDisbursements = (
+  object: dict<JSON.t>,
+  fallbackPrincipal: string,
+): option<array<disbursementInput>> => switch jsonField(object, "disbursements") {
+| None => Some([{amountInput: fallbackPrincipal, monthInput: "1"}])
+| Some(value) => decodeDisbursementArray(value)
+}
 
 let decodeLabel = (object: dict<JSON.t>, key: string, fallback: string): result<string, importError> =>
   switch jsonField(object, key) {
@@ -217,16 +250,18 @@ let decode = (content: string): result<savedState, importError> => {
 }
 
 let profileFromSavedState = (saved: savedState): profile => {
+  let principalInput = Belt.Float.toString(saved.principal)
   {
     name: "Imported Loan",
     purpose: "",
-    principalInput: Belt.Float.toString(saved.principal),
+    principalInput,
     annualRateInput: Belt.Float.toString(saved.annualRate),
     tenureMonthsInput: Belt.Int.toString(saved.tenureMonths),
     style: saved.style,
     flatPaidMonths: saved.flatPaidMonths,
     emiPaidMonths: saved.emiPaidMonths,
     bulletPaidMonths: saved.bulletPaidMonths,
+    disbursements: [{amountInput: principalInput, monthInput: "1"}],
   }
 }
 
@@ -242,23 +277,35 @@ let decodeProfile = (object: dict<JSON.t>): result<profile, importError> =>
       decodeStyle(object),
     ) {
     | (Some(principalInput), Some(annualRateInput), Some(tenureMonthsInput), Some(style)) =>
-      switch LoanMath.parseLoanInput(~principalInput, ~annualRateInput, ~tenureMonthsInput) {
-      | Error(_) => Error(InvalidLoan)
-      | Ok(input) =>
-        switch decodePaidMonths(~root=object, ~style, ~tenureMonths=input.tenureMonths) {
-        | Error(error) => Error(error)
-        | Ok((flatPaidMonths, emiPaidMonths, bulletPaidMonths)) =>
-          Ok({
-            name,
-            purpose,
-            principalInput,
-            annualRateInput,
-            tenureMonthsInput,
-            style,
-            flatPaidMonths,
-            emiPaidMonths,
-            bulletPaidMonths,
-          })
+      switch decodeDisbursements(object, principalInput) {
+      | None => Error(InvalidFormat)
+      | Some(disbursements) =>
+        switch LoanMath.parseStagedLoanInput(
+          ~plannedPrincipalInput=principalInput,
+          ~annualRateInput,
+          ~tenureMonthsInput,
+          ~disbursementInputs=disbursements->Belt.Array.map(disbursement =>
+            (disbursement.amountInput, disbursement.monthInput)
+          ),
+        ) {
+        | Error(_) => Error(InvalidLoan)
+        | Ok(input) =>
+          switch decodePaidMonths(~root=object, ~style, ~tenureMonths=input.tenureMonths) {
+          | Error(error) => Error(error)
+          | Ok((flatPaidMonths, emiPaidMonths, bulletPaidMonths)) =>
+            Ok({
+              name,
+              purpose,
+              principalInput,
+              annualRateInput,
+              tenureMonthsInput,
+              style,
+              flatPaidMonths,
+              emiPaidMonths,
+              bulletPaidMonths,
+              disbursements,
+            })
+          }
         }
       }
     | _ => Error(InvalidFormat)
@@ -400,6 +447,12 @@ let encodeProfile = (profile: profile): JSON.t => {
     ("emi", JSON.Encode.intArray(normalizedEmi)),
     ("bullet", JSON.Encode.intArray(normalizedBullet)),
   ])->JSON.Encode.object
+  let disbursements = profile.disbursements->Belt.Array.map(disbursement =>
+    Dict.fromArray([
+      ("amount", JSON.Encode.string(disbursement.amountInput)),
+      ("month", JSON.Encode.string(disbursement.monthInput)),
+    ])->JSON.Encode.object
+  )
   Dict.fromArray([
     ("name", JSON.Encode.string(profile.name)),
     ("purpose", JSON.Encode.string(profile.purpose)),
@@ -408,6 +461,7 @@ let encodeProfile = (profile: profile): JSON.t => {
     ("tenureMonths", JSON.Encode.string(profile.tenureMonthsInput)),
     ("style", JSON.Encode.string(LoanMath.repaymentStyleToString(profile.style))),
     ("paidMonthsByStyle", paidMonthsByStyle),
+    ("disbursements", JSON.Encode.array(disbursements)),
   ])->JSON.Encode.object
 }
 
@@ -417,7 +471,7 @@ let encodeProfiles = (~profiles: array<profile>, ~activeProfileIndex: int): stri
     ~profileCount=Belt.Array.length(profiles),
   )
   Dict.fromArray([
-    ("version", JSON.Encode.int(3)),
+    ("version", JSON.Encode.int(4)),
     ("activeProfileIndex", JSON.Encode.int(normalizedIndex)),
     ("profiles", profiles->Belt.Array.map(encodeProfile)->JSON.Encode.array),
   ])->JSON.Encode.object->JSON.stringify

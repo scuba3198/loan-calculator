@@ -45,6 +45,11 @@ let profileWithPaidMonths = (
 | LoanMath.Bullet => {...profile, bulletPaidMonths: paidMonths}
 }
 
+let profileDisbursementInputs = (profile: LoanPersistence.profile): array<(string, string)> =>
+  profile.disbursements->Belt.Array.map(disbursement =>
+    (disbursement.amountInput, disbursement.monthInput)
+  )
+
 @react.component
 let make = () => {
   let (profiles, setProfiles) = React.useState(() => [LoanPersistence.defaultProfile])
@@ -63,18 +68,24 @@ let make = () => {
 
   let fileInputRef = React.useRef(Nullable.null)
 
-  let parsedInput = LoanMath.parseLoanInput(
-    ~principalInput=activeProfile.principalInput,
+  let parsedInput = LoanMath.parseStagedLoanInput(
+    ~plannedPrincipalInput=activeProfile.principalInput,
     ~annualRateInput=activeProfile.annualRateInput,
     ~tenureMonthsInput=activeProfile.tenureMonthsInput,
+    ~disbursementInputs=profileDisbursementInputs(activeProfile),
   )
   let calculationResult = switch parsedInput {
-  | Ok(input) => LoanMath.calculate(~input, ~style=activeProfile.style)
+  | Ok(input) => LoanMath.calculateStaged(~input, ~style=activeProfile.style)
   | Error(error) => Error(error)
   }
   let currentInput = switch parsedInput {
   | Ok(input) => input
-  | Error(_) => LoanMath.defaultInput
+  | Error(_) => {
+      plannedPrincipal: LoanMath.defaultInput.principal,
+      annualRate: LoanMath.defaultInput.annualRate,
+      tenureMonths: LoanMath.defaultInput.tenureMonths,
+      disbursements: [{amount: LoanMath.defaultInput.principal, month: 1}],
+    }
   }
 
   let activePaidMonths = profilePaidMonths(activeProfile)
@@ -104,6 +115,36 @@ let make = () => {
     })
   }
 
+  let updateActiveDisbursement = (
+    index: int,
+    update: LoanPersistence.disbursementInput => LoanPersistence.disbursementInput,
+  ) => updateActiveProfile(profile => {
+    let disbursements = profile.disbursements->Belt.Array.mapWithIndex((disbursementIndex, disbursement) =>
+      disbursementIndex == index ? update(disbursement) : disbursement
+    )
+    {...profile, disbursements}
+  })
+
+  let handleAddDisbursement = () => {
+    updateActiveProfile(profile => {
+      let nextDisbursement: LoanPersistence.disbursementInput = {amountInput: "", monthInput: "1"}
+      {...profile, disbursements: Belt.Array.concat(profile.disbursements, [nextDisbursement])}
+    })
+    setFeedback(_ => Some("Disbursement row added."))
+  }
+
+  let handleRemoveDisbursement = (index: int) => {
+    if Belt.Array.length(activeProfile.disbursements) > 1 {
+      updateActiveProfile(profile => {
+        let disbursements = profile.disbursements->Belt.Array.keepWithIndex(
+          (_, disbursementIndex) => disbursementIndex != index,
+        )
+        {...profile, disbursements}
+      })
+      setFeedback(_ => Some("Disbursement row removed."))
+    }
+  }
+
   let handleAddProfile = () => {
     let nextIndex = Belt.Array.length(profiles)
     let nextProfile = LoanPersistence.createProfile(
@@ -131,10 +172,11 @@ let make = () => {
     }
   }
 
-  let allProfilesValid = Belt.Array.every(profiles, profile => switch LoanMath.parseLoanInput(
-    ~principalInput=profile.principalInput,
+  let allProfilesValid = Belt.Array.every(profiles, profile => switch LoanMath.parseStagedLoanInput(
+    ~plannedPrincipalInput=profile.principalInput,
     ~annualRateInput=profile.annualRateInput,
     ~tenureMonthsInput=profile.tenureMonthsInput,
+    ~disbursementInputs=profileDisbursementInputs(profile),
   ) {
   | Ok(_) => true
   | Error(_) => false
@@ -407,7 +449,7 @@ let make = () => {
 
       <div className="inputs-grid">
         <label className="input-field">
-          <span className="field-label"> {React.string("Principal (₹)")} </span>
+          <span className="field-label"> {React.string("Planned Loan Amount (₹)")} </span>
           <input
             id="principal-input"
             className="input-control"
@@ -508,6 +550,103 @@ let make = () => {
           </select>
         </div>
       </div>
+
+      <section className="disbursements-panel">
+        <div className="disbursements-header">
+          <div>
+            <p className="eyebrow"> {React.string("Funding plan")} </p>
+            <h2 className="profile-title"> {React.string("Money handed over")} </h2>
+            <p className="section-description">
+              {React.string("Add each amount when it is actually given. Loan month 1 is the first repayment month. Interest and repayments begin for each tranche from its loan month.")}
+            </p>
+          </div>
+          <button type_="button" className="btn-action" onClick={_ => handleAddDisbursement()}>
+            {React.string("Add Disbursement")}
+          </button>
+        </div>
+
+        <div className="funding-summary">
+          {switch calculationResult {
+          | Ok(calculation) => {
+              let remainingCommitment = Math.max(
+                calculation.plannedPrincipal -. calculation.disbursedPrincipal,
+                0.0,
+              )
+              <>
+                <div className="funding-stat">
+                  <span> {React.string("Committed")} </span>
+                  <strong> {React.string(formatCurrency(calculation.plannedPrincipal))} </strong>
+                </div>
+                <div className="funding-stat">
+                  <span> {React.string("Handed over")} </span>
+                  <strong> {React.string(formatCurrency(calculation.disbursedPrincipal))} </strong>
+                </div>
+                <div className="funding-stat funding-stat-highlight">
+                  <span> {React.string("Still to hand over")} </span>
+                  <strong> {React.string(formatCurrency(remainingCommitment))} </strong>
+                </div>
+              </>
+            }
+          | Error(_) =>
+            <p className="funding-summary-error">
+              {React.string("Complete the disbursement rows to see the funding summary.")}
+            </p>
+          }}
+        </div>
+
+        <div className="disbursements-list">
+          {activeProfile.disbursements
+          ->Belt.Array.mapWithIndex((index, disbursement) =>
+            <div className="disbursement-row" key={Belt.Int.toString(index)}>
+              <div className="disbursement-number" ariaHidden=true>
+                {React.string(Belt.Int.toString(index + 1))}
+              </div>
+              <label className="input-field">
+                <span className="field-label"> {React.string("Amount given (₹)")} </span>
+                <input
+                  className="input-control"
+                  type_="number"
+                  min="0.01"
+                  step=0.01
+                  inputMode="decimal"
+                  value={disbursement.amountInput}
+                  onChange={event => {
+                    let value = ReactEvent.Form.target(event)["value"]
+                    updateActiveDisbursement(index, row => {...row, amountInput: value})
+                    clearFeedback()
+                  }}
+                />
+              </label>
+              <label className="input-field">
+                <span className="field-label"> {React.string("Loan month")} </span>
+                <input
+                  className="input-control"
+                  type_="number"
+                  min="1"
+                  max={Belt.Int.toString(LoanMath.maxTenureMonths)}
+                  step=1.0
+                  inputMode="numeric"
+                  value={disbursement.monthInput}
+                  onChange={event => {
+                    let value = ReactEvent.Form.target(event)["value"]
+                    updateActiveDisbursement(index, row => {...row, monthInput: value})
+                    clearFeedback()
+                  }}
+                />
+              </label>
+              <button
+                type_="button"
+                className="btn-action disbursement-remove"
+                disabled={Belt.Array.length(activeProfile.disbursements) <= 1}
+                onClick={_ => handleRemoveDisbursement(index)}
+                ariaLabel={"Remove disbursement " ++ Belt.Int.toString(index + 1)}>
+                {React.string("Remove")}
+              </button>
+            </div>
+          )
+          ->React.array}
+        </div>
+      </section>
 
       {content}
     </div>

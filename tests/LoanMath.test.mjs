@@ -79,6 +79,64 @@ test("input parsing rejects trailing characters and fractional tenures", () => {
   );
 });
 
+test("staged disbursements keep commitment separate from funded principal", () => {
+  const current = unwrapOk(
+    LoanMath.parseStagedLoanInput("500000", "12", "12", [["100000", "1"]]),
+  );
+  const currentResult = unwrapOk(
+    LoanMath.calculateStaged(current, LoanMath.repaymentStyleFromString("flat")),
+  );
+
+  assert.equal(currentResult.plannedPrincipal, 500000);
+  assert.equal(currentResult.disbursedPrincipal, 100000);
+  assert.equal(currentResult.totalInterest, 12000);
+
+  const staged = unwrapOk(
+    LoanMath.parseStagedLoanInput("500000", "12", "12", [
+      ["100000", "1"],
+      ["400000", "3"],
+    ]),
+  );
+  const flat = unwrapOk(
+    LoanMath.calculateStaged(staged, LoanMath.repaymentStyleFromString("flat")),
+  );
+
+  assert.equal(flat.totalInterest, 52000);
+  assert.ok(Math.abs(flat.schedule[0].payment - 9333.333333333334) < 0.000001);
+  assert.ok(Math.abs(flat.schedule[2].payment - 53333.333333333336) < 0.000001);
+  assert.equal(flat.schedule.at(-1).balance, 0);
+
+  const emi = unwrapOk(
+    LoanMath.calculateStaged(staged, LoanMath.repaymentStyleFromString("emi")),
+  );
+  assert.ok(emi.schedule[2].payment > emi.schedule[1].payment);
+  assert.equal(emi.schedule.at(-1).balance, 0);
+});
+
+test("staged disbursement validation protects the commitment and tenure", () => {
+  assert.equal(
+    unwrapOk(
+      LoanMath.parseStagedLoanInput("0.30", "0", "1", [
+        ["0.10", "1"],
+        ["0.20", "1"],
+      ]),
+    ).plannedPrincipal,
+    0.3,
+  );
+  assert.equal(
+    unwrapError(
+      LoanMath.parseStagedLoanInput("500000", "12", "12", [["500001", "1"]]),
+    ),
+    "DisbursementsExceedCommitment",
+  );
+  assert.equal(
+    unwrapError(
+      LoanMath.parseStagedLoanInput("500000", "12", "12", [["100000", "13"]]),
+    ),
+    "InvalidDisbursement",
+  );
+});
+
 test("profile import rejects malformed numeric strings", () => {
   const malformed = JSON.stringify({
     profiles: [{
@@ -92,6 +150,22 @@ test("profile import rejects malformed numeric strings", () => {
   });
 
   assert.equal(unwrapError(LoanPersistence.decodeProfiles(malformed)), "InvalidLoan");
+});
+
+test("profile import rejects disbursements outside the loan plan", () => {
+  const invalid = JSON.stringify({
+    profiles: [{
+      name: "Business Loan",
+      purpose: "Working capital",
+      principal: "500000",
+      annualRate: "12",
+      tenureMonths: "12",
+      style: "flat",
+      disbursements: [{amount: "100000", month: "13"}],
+    }],
+  });
+
+  assert.equal(unwrapError(LoanPersistence.decodeProfiles(invalid)), "InvalidLoan");
 });
 
 test("EMI schedule remains consistent for high-rate long-term loans", () => {
@@ -162,6 +236,7 @@ test("profile persistence round-trips multiple named loans", () => {
     tenureMonthsInput: "12",
     style: "Emi",
     emiPaidMonths: [1, 2],
+    disbursements: [{amountInput: "90000", monthInput: "1"}],
   };
   const friendLoan = {
     ...LoanPersistence.createProfile("Friend Loan", "Business working capital"),
@@ -170,6 +245,10 @@ test("profile persistence round-trips multiple named loans", () => {
     tenureMonthsInput: "18",
     style: "FlatRate",
     flatPaidMonths: [1],
+    disbursements: [
+      {amountInput: "100000", monthInput: "1"},
+      {amountInput: "150000", monthInput: "3"},
+    ],
   };
 
   const json = LoanPersistence.encodeProfiles([purchase, friendLoan], 1);
@@ -184,6 +263,10 @@ test("profile persistence round-trips multiple named loans", () => {
   assert.equal(saved.profiles[1].name, "Friend Loan");
   assert.equal(saved.profiles[1].style, "FlatRate");
   assert.deepEqual(saved.profiles[1].flatPaidMonths, [1]);
+  assert.deepEqual(saved.profiles[1].disbursements, [
+    {amountInput: "100000", monthInput: "1"},
+    {amountInput: "150000", monthInput: "3"},
+  ]);
 });
 
 test("profile persistence wraps the legacy single-loan format", () => {
@@ -195,4 +278,5 @@ test("profile persistence wraps the legacy single-loan format", () => {
   assert.equal(saved.profiles[0].name, "Imported Loan");
   assert.equal(saved.profiles[0].style, "Bullet");
   assert.deepEqual(saved.profiles[0].bulletPaidMonths, [1, 3]);
+  assert.deepEqual(saved.profiles[0].disbursements, [{amountInput: "1000", monthInput: "1"}]);
 });
