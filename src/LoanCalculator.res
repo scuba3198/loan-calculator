@@ -460,7 +460,20 @@ let make = () => {
             value=activeProfile.principalInput
             onChange={event => {
               let value = ReactEvent.Form.target(event)["value"]
-              updateActiveProfile(profile => {...profile, principalInput: value})
+              updateActiveProfile(profile => {
+                // Keep the default single disbursement in sync with the planned
+                // amount until the user has explicitly customized it.
+                let disbursements = if Belt.Array.length(profile.disbursements) == 1 {
+                  profile.disbursements->Belt.Array.map(disbursement =>
+                    disbursement.amountInput == profile.principalInput
+                      ? {...disbursement, amountInput: value}
+                      : disbursement
+                  )
+                } else {
+                  profile.disbursements
+                }
+                {...profile, principalInput: value, disbursements}
+              })
               clearFeedback()
             }}
           />
