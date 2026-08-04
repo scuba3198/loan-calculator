@@ -388,6 +388,41 @@ label.input-field {
   margin-bottom: 1.25rem;
 }
 
+.disbursements-header-collapsed {
+  margin-bottom: 0;
+}
+
+.funding-plan-toggle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.funding-plan-toggle:focus-visible {
+  outline: 2px solid var(--paid-badge-text);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.funding-plan-toggle .eyebrow,
+.funding-plan-toggle .profile-title {
+  display: block;
+}
+
+.funding-plan-chevron {
+  color: var(--muted-color);
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
 .section-description {
   margin: 0.45rem 0 0;
   color: var(--muted-color);

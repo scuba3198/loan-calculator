@@ -56,6 +56,7 @@ let make = () => {
   let (activeProfileIndex, setActiveProfileIndex) = React.useState(() => 0)
   let (theme, setTheme) = React.useState(() => Oled)
   let (feedback, setFeedback) = React.useState(() => None)
+  let (fundingPlanExpanded, setFundingPlanExpanded) = React.useState(() => false)
 
   let activeProfile = profileAt(profiles, activeProfileIndex)
 
@@ -565,19 +566,34 @@ let make = () => {
       </div>
 
       <section className="disbursements-panel">
-        <div className="disbursements-header">
+        <div className={fundingPlanExpanded
+          ? "disbursements-header"
+          : "disbursements-header disbursements-header-collapsed"}>
           <div>
-            <p className="eyebrow"> {React.string("Funding plan")} </p>
-            <h2 className="profile-title"> {React.string("Money handed over")} </h2>
-            <p className="section-description">
+            <button
+              type_="button"
+              className="funding-plan-toggle"
+              ariaExpanded={fundingPlanExpanded}
+              ariaControls="funding-plan-content"
+              onClick={_ => setFundingPlanExpanded(prev => !prev)}>
+              <span>
+                <span className="eyebrow"> {React.string("Funding plan")} </span>
+                <span className="profile-title"> {React.string("Money handed over")} </span>
+              </span>
+              <span className="funding-plan-chevron" ariaHidden=true>
+                {React.string(fundingPlanExpanded ? "▴" : "▾")}
+              </span>
+            </button>
+            {fundingPlanExpanded ? <p className="section-description">
               {React.string("Add each amount when it is actually given. Loan month 1 is the first repayment month. Interest and repayments begin for each tranche from its loan month.")}
-            </p>
+            </p> : React.null}
           </div>
-          <button type_="button" className="btn-action" onClick={_ => handleAddDisbursement()}>
+          {fundingPlanExpanded ? <button type_="button" className="btn-action" onClick={_ => handleAddDisbursement()}>
             {React.string("Add Disbursement")}
-          </button>
+          </button> : React.null}
         </div>
 
+        {fundingPlanExpanded ? <div id="funding-plan-content">
         <div className="funding-summary">
           {switch calculationResult {
           | Ok(calculation) => {
@@ -659,6 +675,7 @@ let make = () => {
           )
           ->React.array}
         </div>
+        </div> : React.null}
       </section>
 
       {content}
