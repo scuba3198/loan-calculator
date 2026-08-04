@@ -338,6 +338,51 @@ label.input-field {
   margin-bottom: 1.25rem;
 }
 
+.profiles-header-collapsed {
+  margin-bottom: 0;
+}
+
+.profiles-panel-collapsed {
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+}
+
+.profiles-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.profiles-toggle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profiles-toggle:focus-visible {
+  outline: 2px solid var(--paid-badge-text);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.profiles-toggle .eyebrow,
+.profiles-toggle .profile-title {
+  display: block;
+}
+
+.profiles-chevron {
+  color: var(--muted-color);
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
 .eyebrow {
   margin: 0 0 0.35rem;
   color: var(--muted-color);

@@ -57,6 +57,7 @@ let make = () => {
   let (theme, setTheme) = React.useState(() => Oled)
   let (feedback, setFeedback) = React.useState(() => None)
   let (fundingPlanExpanded, setFundingPlanExpanded) = React.useState(() => false)
+  let (profilesExpanded, setProfilesExpanded) = React.useState(() => false)
 
   let activeProfile = profileAt(profiles, activeProfileIndex)
 
@@ -372,13 +373,25 @@ let make = () => {
         }}
       </div>
 
-      <section className="profiles-panel">
-        <div className="profiles-header">
-          <div>
-            <p className="eyebrow"> {React.string("Loan profiles")} </p>
-            <h2 className="profile-title"> {React.string("Choose what you are tracking")} </h2>
+      <section className={profilesExpanded ? "profiles-panel" : "profiles-panel profiles-panel-collapsed"}>
+        <div className={profilesExpanded ? "profiles-header" : "profiles-header profiles-header-collapsed"}>
+          <div className="profiles-heading">
+            <button
+              type_="button"
+              className="profiles-toggle"
+              ariaExpanded={profilesExpanded}
+              ariaControls="loan-profiles-content"
+              onClick={_ => setProfilesExpanded(prev => !prev)}>
+              <span>
+                <span className="eyebrow"> {React.string("Loan profiles")} </span>
+                <span className="profile-title"> {React.string("Choose what you are tracking")} </span>
+              </span>
+              <span className="profiles-chevron" ariaHidden=true>
+                {React.string(profilesExpanded ? "▴" : "▾")}
+              </span>
+            </button>
           </div>
-          <div className="profile-actions">
+          {profilesExpanded ? <div className="profile-actions">
             <label className="profile-picker">
               <span className="visually-hidden"> {React.string("Active loan profile")} </span>
               <select
@@ -413,9 +426,9 @@ let make = () => {
               onClick={_ => handleDeleteProfile()}>
               {React.string("Delete")}
             </button>
-          </div>
+          </div> : React.null}
         </div>
-        <div className="profile-fields">
+        {profilesExpanded ? <div id="loan-profiles-content" className="profile-fields">
           <label className="input-field">
             <span className="field-label"> {React.string("Profile Name")} </span>
             <input
@@ -445,7 +458,7 @@ let make = () => {
               }}
             />
           </label>
-        </div>
+        </div> : React.null}
       </section>
 
       <div className="inputs-grid">
