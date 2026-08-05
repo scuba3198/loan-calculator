@@ -600,19 +600,97 @@ label.input-field {
   border: 0;
 }
 
-/* Results Stats Cards */
+/* Results Ledger */
 .results-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1.25rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--border-color);
   padding-bottom: 2rem;
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 2rem;
 }
 
+.stat-card {
+  min-width: 0;
+  padding: 1rem 1.25rem 1.15rem;
+  text-align: left;
+}
+
+.stat-card:first-child {
+  grid-column: 1 / -1;
+  padding: 1.25rem 0 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.stat-card:not(:first-child) + .stat-card {
+  border-left: 1px solid var(--border-color);
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted-color);
+  margin: 0 0 0.45rem;
+}
+
+.stat-value {
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-color);
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-card:first-child .stat-value {
+  font-size: clamp(2.25rem, 6vw, 3.5rem);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+/* Accessible progress bar inside the ledger */
+.progress-control {
+  width: 100%;
+  height: 4px;
+  margin-top: 0.85rem;
+  appearance: none;
+  border: 0;
+  background-color: var(--border-color);
+}
+
+.progress-control::-webkit-progress-bar {
+  background-color: var(--border-color);
+}
+
+.progress-control::-webkit-progress-value {
+  background-color: var(--paid-badge-text);
+  transition: width 0.3s ease;
+}
+
+.progress-control::-moz-progress-bar {
+  background-color: var(--paid-badge-text);
+  transition: width 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-control::-webkit-progress-value,
+  .progress-control::-moz-progress-bar {
+    transition: none;
+  }
+}
+
 @media (max-width: 768px) {
   .results-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .results-grid .stat-card:last-child {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid var(--border-color);
   }
 }
 
@@ -620,59 +698,11 @@ label.input-field {
   .results-grid {
     grid-template-columns: 1fr;
   }
-}
 
-.stat-card {
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 1.25rem 1rem;
-  text-align: left;
-}
-
-.stat-label {
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted-color);
-  margin: 0 0 0.5rem 0;
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--text-color);
-  margin: 0;
-}
-
-/* Accessible progress bar inside the stat card */
-.progress-control {
-  width: 100%;
-  height: 6px;
-  margin-top: 0.75rem;
-  appearance: none;
-  border: 0;
-  background-color: var(--border-color);
-  border-radius: 3px;
-}
-
-.progress-control::-webkit-progress-bar {
-  background-color: var(--border-color);
-  border-radius: 3px;
-}
-
-.progress-control::-webkit-progress-value {
-  background-color: var(--paid-badge-text);
-  border-radius: 3px;
-  transition: width 0.3s ease;
-}
-
-.progress-control::-moz-progress-bar {
-  background-color: var(--paid-badge-text);
-  border-radius: 3px;
-  transition: width 0.3s ease;
+  .results-grid .stat-card:not(:first-child) {
+    border-left: 0;
+    border-top: 1px solid var(--border-color);
+  }
 }
 
 /* Schedule Table Section Header */
