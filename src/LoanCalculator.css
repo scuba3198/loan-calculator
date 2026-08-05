@@ -603,7 +603,7 @@ label.input-field {
 /* Results Ledger */
 .results-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   border-top: 1px solid var(--border-color);
   padding-bottom: 2rem;
   border-bottom: 1px solid var(--border-color);
@@ -616,14 +616,18 @@ label.input-field {
   text-align: left;
 }
 
-.stat-card:first-child {
-  grid-column: 1 / -1;
-  padding: 1.25rem 0 1.5rem;
-  border-bottom: 1px solid var(--border-color);
+.stat-card-primary {
+  padding-top: 1.25rem;
+  padding-bottom: 1.5rem;
 }
 
-.stat-card:not(:first-child) + .stat-card {
+.stat-card-primary + .stat-card-primary,
+.stat-card-secondary + .stat-card-secondary {
   border-left: 1px solid var(--border-color);
+}
+
+.stat-card-secondary {
+  border-top: 1px solid var(--border-color);
 }
 
 .stat-label {
@@ -644,8 +648,8 @@ label.input-field {
   font-variant-numeric: tabular-nums;
 }
 
-.stat-card:first-child .stat-value {
-  font-size: clamp(2.25rem, 6vw, 3.5rem);
+.stat-card-primary .stat-value {
+  font-size: clamp(2rem, 5vw, 3rem);
   font-weight: 600;
   letter-spacing: -0.045em;
   line-height: 1;
@@ -682,25 +686,17 @@ label.input-field {
   }
 }
 
-@media (max-width: 768px) {
-  .results-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .results-grid .stat-card:last-child {
-    grid-column: 1 / -1;
-    border-left: 0;
-    border-top: 1px solid var(--border-color);
-  }
-}
-
 @media (max-width: 480px) {
   .results-grid {
     grid-template-columns: 1fr;
   }
 
-  .results-grid .stat-card:not(:first-child) {
+  .stat-card-primary + .stat-card-primary,
+  .stat-card-secondary + .stat-card-secondary {
     border-left: 0;
+  }
+
+  .results-grid .stat-card:not(:first-child) {
     border-top: 1px solid var(--border-color);
   }
 }

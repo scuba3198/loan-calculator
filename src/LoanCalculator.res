@@ -228,19 +228,19 @@ let make = () => {
     let progressPct = Belt.Int.toFloat(paidCount) /. Belt.Int.toFloat(currentInput.tenureMonths) *. 100.0
     <>
       <div className="results-grid">
-        <div className="stat-card">
-          <p className="stat-label"> {React.string(calculation.monthlyLabel)} </p>
-          <p className="stat-value"> {React.string(formatCurrency(calculation.monthlyPayment))} </p>
-        </div>
-        <div className="stat-card">
+        <div className="stat-card stat-card-primary">
           <p className="stat-label"> {React.string("Total Interest")} </p>
           <p className="stat-value"> {React.string(formatCurrency(calculation.totalInterest))} </p>
         </div>
-        <div className="stat-card">
-          <p className="stat-label"> {React.string("Total Repaid")} </p>
+        <div className="stat-card stat-card-primary">
+          <p className="stat-label"> {React.string("Total Repayment")} </p>
           <p className="stat-value"> {React.string(formatCurrency(calculation.totalRepaid))} </p>
         </div>
-        <div className="stat-card">
+        <div className="stat-card stat-card-secondary">
+          <p className="stat-label"> {React.string("Month 1 Payment")} </p>
+          <p className="stat-value"> {React.string(formatCurrency(calculation.monthlyPayment))} </p>
+        </div>
+        <div className="stat-card stat-card-secondary">
           <p className="stat-label"> {React.string("Payment Progress")} </p>
           <p className="stat-value">
             {React.string(Belt.Int.toString(paidCount) ++ "/" ++ Belt.Int.toString(currentInput.tenureMonths) ++ " Paid")}
