@@ -52,8 +52,9 @@ let profileDisbursementInputs = (profile: LoanPersistence.profile): array<(strin
 
 @react.component
 let make = () => {
-  let (profiles, setProfiles) = React.useState(() => [LoanPersistence.defaultProfile])
-  let (activeProfileIndex, setActiveProfileIndex) = React.useState(() => 0)
+  let restoredProfiles = LoanPersistence.restoreProfiles()
+  let (profiles, setProfiles) = React.useState(() => restoredProfiles.profiles)
+  let (activeProfileIndex, setActiveProfileIndex) = React.useState(() => restoredProfiles.activeProfileIndex)
   let (theme, setTheme) = React.useState(() => Oled)
   let (feedback, setFeedback) = React.useState(() => None)
   let (fundingPlanExpanded, setFundingPlanExpanded) = React.useState(() => false)
@@ -183,6 +184,13 @@ let make = () => {
   | Ok(_) => true
   | Error(_) => false
   })
+
+  React.useEffect2(() => {
+    if allProfilesValid {
+      LoanPersistence.persistProfiles(~profiles, ~activeProfileIndex)
+    }
+    None
+  }, (profiles, activeProfileIndex))
 
   let handleExport = () => switch calculationResult {
   | Ok(_) if allProfilesValid =>

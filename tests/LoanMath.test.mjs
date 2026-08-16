@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as LoanMath from "../src/LoanMath.bs.js";
 import * as LoanPersistence from "../src/LoanPersistence.bs.js";
+import * as LoanFile from "../src/LoanFile.js";
 
 const unwrapOk = (result) => {
   assert.equal(result.TAG, "Ok");
@@ -279,4 +280,27 @@ test("profile persistence wraps the legacy single-loan format", () => {
   assert.equal(saved.profiles[0].style, "Bullet");
   assert.deepEqual(saved.profiles[0].bulletPaidMonths, [1, 3]);
   assert.deepEqual(saved.profiles[0].disbursements, [{amountInput: "1000", monthInput: "1"}]);
+});
+
+test("profiles save to browser storage", () => {
+  const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const values = new Map();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: key => values.get(key) ?? null,
+      setItem: (key, value) => values.set(key, value),
+    },
+  });
+
+  try {
+    LoanFile.saveProfiles('{"profiles":[]}');
+    assert.equal(LoanFile.loadSavedProfiles(), '{"profiles":[]}');
+  } finally {
+    if (originalStorage) {
+      Object.defineProperty(globalThis, "localStorage", originalStorage);
+    } else {
+      delete globalThis.localStorage;
+    }
+  }
 });

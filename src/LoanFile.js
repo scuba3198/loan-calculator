@@ -37,3 +37,21 @@ export function clearFileInput(input) {
 export function clickFileInput(input) {
   input.click();
 }
+
+const profilesStorageKey = "loan-calculator-profiles";
+
+export function loadSavedProfiles() {
+  try {
+    return globalThis.localStorage?.getItem(profilesStorageKey) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function saveProfiles(content) {
+  try {
+    globalThis.localStorage?.setItem(profilesStorageKey, content);
+  } catch {
+    // Storage can be unavailable in private browsing or when disabled.
+  }
+}

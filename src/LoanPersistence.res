@@ -48,6 +48,12 @@ external clearFileInput: 'a => unit = "clearFileInput"
 @module("./LoanFile.js")
 external clickFileInput: 'a => unit = "clickFileInput"
 
+@module("./LoanFile.js")
+external loadSavedProfiles: unit => string = "loadSavedProfiles"
+
+@module("./LoanFile.js")
+external saveProfiles: string => unit = "saveProfiles"
+
 let createProfile = (~name: string, ~purpose: string): profile => {
   let defaultPrincipal = Belt.Float.toString(LoanMath.defaultInput.principal)
   {
@@ -476,6 +482,15 @@ let encodeProfiles = (~profiles: array<profile>, ~activeProfileIndex: int): stri
     ("profiles", profiles->Belt.Array.map(encodeProfile)->JSON.Encode.array),
   ])->JSON.Encode.object->JSON.stringify
 }
+
+let restoreProfiles = (): savedProfiles =>
+  switch decodeProfiles(loadSavedProfiles()) {
+  | Ok(saved) => saved
+  | Error(_) => {profiles: [defaultProfile], activeProfileIndex: 0}
+  }
+
+let persistProfiles = (~profiles: array<profile>, ~activeProfileIndex: int): unit =>
+  saveProfiles(encodeProfiles(~profiles, ~activeProfileIndex))
 
 let importErrorMessage = (error: importError): string => switch error {
 | InvalidJson => "The selected file is not valid JSON."
