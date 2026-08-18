@@ -130,7 +130,7 @@ let make = () => {
 
   let handleAddDisbursement = () => {
     updateActiveProfile(profile => {
-      let nextDisbursement: LoanPersistence.disbursementInput = {amountInput: "", monthInput: "1"}
+      let nextDisbursement: LoanPersistence.disbursementInput = {amountInput: "", monthInput: "1", dateInput: ""}
       {...profile, disbursements: Belt.Array.concat(profile.disbursements, [nextDisbursement])}
     })
     setFeedback(_ => Some("Disbursement row added."))
@@ -681,6 +681,23 @@ let make = () => {
                     let value = ReactEvent.Form.target(event)["value"]
                     updateActiveDisbursement(index, row => {...row, monthInput: value})
                     clearFeedback()
+                  }}
+                />
+              </label>
+              <label className="input-field">
+                <span className="field-label"> {React.string("Date given (optional)")} </span>
+                <input
+                  className="input-control"
+                  type_="date"
+                  min="0001-01-01"
+                  max="9999-12-31"
+                  value={disbursement.dateInput}
+                  onChange={event => {
+                    let value = ReactEvent.Form.target(event)["value"]
+                    if LoanPersistence.isValidDateInput(value) {
+                      updateActiveDisbursement(index, row => {...row, dateInput: value})
+                      clearFeedback()
+                    }
                   }}
                 />
               </label>

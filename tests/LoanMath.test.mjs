@@ -169,6 +169,50 @@ test("profile import rejects disbursements outside the loan plan", () => {
   assert.equal(unwrapError(LoanPersistence.decodeProfiles(invalid)), "InvalidLoan");
 });
 
+test("profile import rejects non-string disbursement dates", () => {
+  const invalid = JSON.stringify({
+    profiles: [{
+      name: "Business Loan",
+      purpose: "Working capital",
+      principal: "500000",
+      annualRate: "12",
+      tenureMonths: "12",
+      style: "flat",
+      disbursements: [{amount: "100000", month: "1", date: 20260818}],
+    }],
+  });
+
+  assert.equal(unwrapError(LoanPersistence.decodeProfiles(invalid)), "InvalidFormat");
+});
+
+test("profile import rejects malformed and impossible disbursement dates", () => {
+  for (const date of ["2026/08/18", "2026-02-30", "0000-01-01", "10000-01-01"]) {
+    const invalid = JSON.stringify({
+      profiles: [{
+        name: "Business Loan",
+        purpose: "Working capital",
+        principal: "500000",
+        annualRate: "12",
+        tenureMonths: "12",
+        style: "flat",
+        disbursements: [{amount: "100000", month: "1", date}],
+      }],
+    });
+
+    assert.equal(unwrapError(LoanPersistence.decodeProfiles(invalid)), "InvalidFormat");
+  }
+});
+
+test("date input validation matches the persisted date contract", () => {
+  assert.equal(LoanPersistence.isValidDateInput(""), true);
+  assert.equal(LoanPersistence.isValidDateInput("0001-01-01"), true);
+  assert.equal(LoanPersistence.isValidDateInput("9999-12-31"), true);
+  assert.equal(LoanPersistence.isValidDateInput("2026-08-18"), true);
+  assert.equal(LoanPersistence.isValidDateInput("2026/08/18"), false);
+  assert.equal(LoanPersistence.isValidDateInput("2026-02-30"), false);
+  assert.equal(LoanPersistence.isValidDateInput("10000-01-01"), false);
+});
+
 test("EMI schedule remains consistent for high-rate long-term loans", () => {
   const result = calculate("emi", parseValid(100000, 36, 1200));
   const scheduleTotal = result.schedule.reduce((sum, row) => sum + row.payment, 0);
@@ -237,7 +281,7 @@ test("profile persistence round-trips multiple named loans", () => {
     tenureMonthsInput: "12",
     style: "Emi",
     emiPaidMonths: [1, 2],
-    disbursements: [{amountInput: "90000", monthInput: "1"}],
+    disbursements: [{amountInput: "90000", monthInput: "1", dateInput: "2026-08-01"}],
   };
   const friendLoan = {
     ...LoanPersistence.createProfile("Friend Loan", "Business working capital"),
@@ -247,7 +291,7 @@ test("profile persistence round-trips multiple named loans", () => {
     style: "FlatRate",
     flatPaidMonths: [1],
     disbursements: [
-      {amountInput: "100000", monthInput: "1"},
+      {amountInput: "100000", monthInput: "1", dateInput: "2026-08-02"},
       {amountInput: "150000", monthInput: "3"},
     ],
   };
@@ -265,8 +309,8 @@ test("profile persistence round-trips multiple named loans", () => {
   assert.equal(saved.profiles[1].style, "FlatRate");
   assert.deepEqual(saved.profiles[1].flatPaidMonths, [1]);
   assert.deepEqual(saved.profiles[1].disbursements, [
-    {amountInput: "100000", monthInput: "1"},
-    {amountInput: "150000", monthInput: "3"},
+    {amountInput: "100000", monthInput: "1", dateInput: "2026-08-02"},
+    {amountInput: "150000", monthInput: "3", dateInput: ""},
   ]);
 });
 
@@ -279,7 +323,7 @@ test("profile persistence wraps the legacy single-loan format", () => {
   assert.equal(saved.profiles[0].name, "Imported Loan");
   assert.equal(saved.profiles[0].style, "Bullet");
   assert.deepEqual(saved.profiles[0].bulletPaidMonths, [1, 3]);
-  assert.deepEqual(saved.profiles[0].disbursements, [{amountInput: "1000", monthInput: "1"}]);
+  assert.deepEqual(saved.profiles[0].disbursements, [{amountInput: "1000", monthInput: "1", dateInput: ""}]);
 });
 
 test("profiles save to browser storage", () => {

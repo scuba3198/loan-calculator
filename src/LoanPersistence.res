@@ -11,6 +11,7 @@ type savedState = {
 type disbursementInput = {
   amountInput: string,
   monthInput: string,
+  dateInput: string,
 }
 
 type profile = {
@@ -66,7 +67,7 @@ let createProfile = (~name: string, ~purpose: string): profile => {
     flatPaidMonths: [],
     emiPaidMonths: [],
     bulletPaidMonths: [],
-    disbursements: [{amountInput: defaultPrincipal, monthInput: "1"}],
+    disbursements: [{amountInput: defaultPrincipal, monthInput: "1", dateInput: ""}],
   }
 }
 
@@ -132,6 +133,34 @@ let decodeInputString = (object: dict<JSON.t>, key: string): option<string> =>
     }
   }
 
+let isValidDateInput = (dateInput: string): bool => {
+  if dateInput == "" {
+    true
+  } else {
+    switch String.match(dateInput, /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) {
+    | None => false
+    | Some(_) => switch Belt.Int.fromString(String.slice(dateInput, ~start=0, ~end=4)) {
+      | Some(year) if year > 0 =>
+        let date = Date.fromString(dateInput)
+        if Float.isFinite(Date.getTime(date)) {
+          date->Date.toISOString->String.slice(~start=0, ~end=10) == dateInput
+        } else {
+          false
+        }
+      | _ => false
+      }
+    }
+  }
+}
+
+let decodeDateInput = (object: dict<JSON.t>): option<string> => switch jsonField(object, "date") {
+| None => Some("")
+| Some(value) => switch JSON.Decode.string(value) {
+  | Some(dateInput) if isValidDateInput(dateInput) => Some(dateInput)
+  | _ => None
+  }
+}
+
 let decodeDisbursementArray = (value: JSON.t): option<array<disbursementInput>> =>
   switch JSON.Decode.array(value) {
   | None => None
@@ -139,8 +168,12 @@ let decodeDisbursementArray = (value: JSON.t): option<array<disbursementInput>> 
     | None => None
     | Some(disbursements) => switch JSON.Decode.object(value) {
       | None => None
-      | Some(object) => switch (decodeInputString(object, "amount"), decodeInputString(object, "month")) {
-        | (Some(amountInput), Some(monthInput)) => Some(Belt.Array.concat(disbursements, [{amountInput, monthInput}]))
+      | Some(object) => switch (
+        decodeInputString(object, "amount"),
+        decodeInputString(object, "month"),
+        decodeDateInput(object),
+      ) {
+        | (Some(amountInput), Some(monthInput), Some(dateInput)) => Some(Belt.Array.concat(disbursements, [{amountInput, monthInput, dateInput}]))
         | _ => None
         }
       }
@@ -151,7 +184,7 @@ let decodeDisbursements = (
   object: dict<JSON.t>,
   fallbackPrincipal: string,
 ): option<array<disbursementInput>> => switch jsonField(object, "disbursements") {
-| None => Some([{amountInput: fallbackPrincipal, monthInput: "1"}])
+| None => Some([{amountInput: fallbackPrincipal, monthInput: "1", dateInput: ""}])
 | Some(value) => decodeDisbursementArray(value)
 }
 
@@ -267,7 +300,7 @@ let profileFromSavedState = (saved: savedState): profile => {
     flatPaidMonths: saved.flatPaidMonths,
     emiPaidMonths: saved.emiPaidMonths,
     bulletPaidMonths: saved.bulletPaidMonths,
-    disbursements: [{amountInput: principalInput, monthInput: "1"}],
+    disbursements: [{amountInput: principalInput, monthInput: "1", dateInput: ""}],
   }
 }
 
@@ -457,6 +490,7 @@ let encodeProfile = (profile: profile): JSON.t => {
     Dict.fromArray([
       ("amount", JSON.Encode.string(disbursement.amountInput)),
       ("month", JSON.Encode.string(disbursement.monthInput)),
+      ("date", JSON.Encode.string(disbursement.dateInput)),
     ])->JSON.Encode.object
   )
   Dict.fromArray([
